@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FlashMind — Flashcard Quiz Agent</title>
+<style>
+ body{font-family:system-ui,sans-serif;background:#0f1419;color:#e6e6e6;margin:0;display:flex;height:100vh}
+ #chat{flex:2;display:flex;flex-direction:column;padding:16px}
+ #trace{flex:1;border-left:1px solid #2a3340;padding:16px;overflow:auto;font:12px/1.5 monospace;color:#8fb3d9;white-space:pre-wrap}
+ #log{flex:1;overflow:auto}
+ .m{margin:8px 0;padding:10px 14px;border-radius:10px;max-width:80%;white-space:pre-wrap}
+ .u{background:#2b5cff;margin-left:auto}.a{background:#1d2530}
+ form{display:flex;gap:8px}input{flex:1;padding:12px;border-radius:8px;border:1px solid #2a3340;background:#1d2530;color:#fff}
+ button{padding:12px 18px;border:0;border-radius:8px;background:#2b5cff;color:#fff;cursor:pointer}
+ h3{margin:0 0 8px}
+</style></head><body>
+<div id="chat"><h3>FlashMind</h3><div id="log"></div>
+<form id="f"><input id="i" placeholder='Try: add card "Capital of France?" = Paris, then "quiz me"' autocomplete="off">
+<button>Send</button><button type="button" id="r" style="background:#444">Reset</button></form></div>
+<div id="trace">Agent trace (plan → tool call → result) appears here.</div>
+<script>
+const log=document.getElementById('log'),trace=document.getElementById('trace');
+function add(t,c){const d=document.createElement('div');d.className='m '+c;d.textContent=t;log.appendChild(d);log.scrollTop=log.scrollHeight}
+document.getElementById('f').onsubmit=async e=>{e.preventDefault();
+ const i=document.getElementById('i'),m=i.value.trim();if(!m)return;i.value='';add(m,'u');
+ try{const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:m})});
+  const d=await r.json();if(d.error){add('Error: '+d.error,'a');return}
+  add(d.response,'a');trace.textContent=d.steps.join('\n')}catch(err){add('Network error: '+err,'a')}};
+document.getElementById('r').onclick=async()=>{await fetch('/api/reset',{method:'POST'});log.innerHTML='';trace.textContent='Memory cleared.'};
+</script></body></html>
