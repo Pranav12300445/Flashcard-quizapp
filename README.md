@@ -12,6 +12,6 @@ Two layers persist across turns. **Layer 1** is the deck (`dict` of cards with `
 
 ## One Honest Failure
 
-*(Replace this with the failure you actually hit when you run it. Draft based on a limitation seen while testing:)* Grading free-text answers with exact matching marked correct paraphrases as wrong, which wrongly raised a card's weakness score and made it return too often. I added fuzzy matching (`difflib` similarity plus key-word overlap in `tools.py`), which fixed typos and extra words, but heavy paraphrases can still be marked wrong; the correct answer is always shown so the user can see why.
+ Grading free-text answers with exact matching marked correct paraphrases as wrong, which wrongly raised a card's weakness score and made it return too often. I added fuzzy matching (`difflib` similarity plus key-word overlap in `tools.py`), which fixed typos and extra words, but heavy paraphrases can still be marked wrong; the correct answer is always shown so the user can see why.
 
 *Run locally:* `pip install -r requirements.txt`, copy `.env.example` to `.env`, add a key, then `python server.py` or open `demo.ipynb`.
