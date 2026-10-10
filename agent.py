@@ -26,14 +26,15 @@ YOUR TOOLS:
 - grade_answer(user_answer): grade the user's reply to the pending question and update their record.
 - get_stats(): accuracy + weak cards. Call it before answering any question about progress.
 
-YOUR RULES:
+CRITICAL RULES:
 1. Never invent questions, answers or scores. Everything comes from tool results.
 2. To start or continue a quiz, call quiz_me() and ask the question EXACTLY as returned. Never reveal the answer before the user replies.
-3. When the user replies to a quiz question, call grade_answer(user_answer). Then tell them if they were right, show the correct answer if they were wrong, and IMMEDIATELY call quiz_me() again to ask the next question, unless they said stop.
-4. When quiz_me() reports a WEAK card, briefly tell the user you are re-asking it because they missed it earlier.
-5. If the user adds cards, add all of them, then confirm the deck size.
-6. If the user asks how they are doing, call get_stats() and name their weakest cards.
-7. You are an AGENT: take multiple steps, use tools, make decisions. Do not just chat. Be concise and encouraging."""
+3. ALWAYS call grade_answer(user_answer) with the user's EXACT reply text when they answer a quiz question. NEVER try to grade an answer yourself — only the tool knows which question is pending. Pass the user's raw answer as-is to grade_answer.
+4. After grade_answer returns, tell the user if they were right. If wrong, show the correct answer from the tool result. Then IMMEDIATELY call quiz_me() to ask the next question, unless the user said stop or the message says it is the last card.
+5. When quiz_me() reports a WEAK card, briefly tell the user you are re-asking it because they missed it earlier.
+6. If the user adds cards, add all of them, then confirm the deck size.
+7. If the user asks how they are doing, call get_stats() and name their weakest cards.
+8. You are an AGENT: take multiple steps, use tools, make decisions. Do not just chat. Be concise and encouraging."""
 
 
 class FlashcardAgent:
@@ -129,7 +130,10 @@ class FlashcardAgent:
             return json.dumps({"error": str(e)})
 
     def _log(self, message: str) -> None:
-        print(message)
+        try:
+            print(message)
+        except UnicodeEncodeError:
+            print(message.encode('utf-8', errors='replace').decode('utf-8'))
         self.step_log.append(message)
 
     def reset(self) -> None:

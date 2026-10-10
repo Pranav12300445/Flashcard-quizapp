@@ -354,6 +354,10 @@
       padding: 14px 16px;
       transition: all 0.25s ease;
       animation: slideIn 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
     }
     @keyframes slideIn {
       from { opacity: 0; transform: translateY(-8px); }
@@ -362,6 +366,35 @@
     .deck-card:hover {
       border-color: rgba(99, 102, 241, 0.2);
       background: rgba(99, 102, 241, 0.05);
+    }
+    .deck-card-content {
+      flex: 1;
+      min-width: 0;
+    }
+    .btn-delete {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.25s ease;
+      opacity: 0;
+    }
+    .deck-card:hover .btn-delete {
+      opacity: 1;
+    }
+    .btn-delete:hover {
+      background: rgba(244, 63, 94, 0.15);
+      border-color: rgba(244, 63, 94, 0.3);
+      color: var(--accent-rose);
+      transform: scale(1.1);
     }
     .deck-card-q {
       font-size: 14px;
@@ -411,6 +444,95 @@
     .deck-empty p {
       font-size: 14px;
       line-height: 1.6;
+    }
+
+    /* Quiz summary / feedback card */
+    .quiz-summary {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      margin: 12px 0;
+      animation: msgIn 0.4s ease;
+      backdrop-filter: blur(12px);
+    }
+    .quiz-summary-title {
+      font-size: 20px;
+      font-weight: 800;
+      margin-bottom: 20px;
+      text-align: center;
+      background: linear-gradient(135deg, var(--accent-emerald), #34d399);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .quiz-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .quiz-stat-card {
+      text-align: center;
+      padding: 16px 12px;
+      border-radius: var(--radius-md);
+      background: var(--bg-glass);
+      border: 1px solid var(--border-glass);
+    }
+    .quiz-stat-card .stat-icon {
+      font-size: 24px;
+      display: block;
+      margin-bottom: 6px;
+    }
+    .quiz-stat-card .stat-value {
+      font-size: 28px;
+      font-weight: 800;
+      display: block;
+      line-height: 1.2;
+    }
+    .quiz-stat-card .stat-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      display: block;
+    }
+    .quiz-stat-card.stat-correct .stat-value { color: var(--accent-emerald); }
+    .quiz-stat-card.stat-wrong .stat-value { color: var(--accent-rose); }
+    .quiz-stat-card.stat-accuracy .stat-value { color: var(--accent-indigo); }
+    .quiz-summary-message {
+      text-align: center;
+      font-size: 15px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+    .quiz-summary-weak {
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: var(--radius-sm);
+      background: rgba(244, 63, 94, 0.06);
+      border: 1px solid rgba(244, 63, 94, 0.15);
+    }
+    .quiz-summary-weak h4 {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent-rose);
+      margin-bottom: 8px;
+    }
+    .quiz-summary-weak li {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-left: 16px;
+      margin-bottom: 4px;
+    }
+    .quiz-summary-actions {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 18px;
     }
 
     /* ---- QUESTION ME PANEL ---- */
@@ -837,16 +959,14 @@ H2O stands for? = Water'></textarea>
       deckEmpty.style.display = 'none';
       // Rebuild deck cards
       deckList.querySelectorAll('.deck-card').forEach(el => el.remove());
-      localDeck.forEach(card => {
+      localDeck.forEach((card, idx) => {
         const div = document.createElement('div');
         div.className = 'deck-card';
         div.innerHTML = `
-          <div class="deck-card-q">❓ ${escapeHtml(card.question)}</div>
-          <div class="deck-card-a">💡 ${escapeHtml(card.answer)}</div>
-          <div class="deck-card-meta">
-            <span class="deck-card-badge badge-correct">✓ ${card.right || 0}</span>
-            <span class="deck-card-badge badge-wrong">✗ ${card.wrong || 0}</span>
-          </div>`;
+          <div class="deck-card-content">
+            <div class="deck-card-q">📄 Card #${idx + 1} — ${escapeHtml(card.question)}</div>
+          </div>
+          <button class="btn-delete" onclick="deleteCard(${card.id}, this)" title="Delete card">🗑️</button>`;
         deckList.appendChild(div);
       });
     }
@@ -857,13 +977,35 @@ H2O stands for? = Water'></textarea>
       return d.innerHTML;
     }
 
-    // ---- Update stats ----
-    async function refreshStats() {
+    // ---- Delete card ----
+    async function deleteCard(cardId, btnEl) {
       try {
-        const resp = await sendToAgent('show my stats');
-        // Try to parse stats from agent's response; the stats are updated
-        // whenever we interact, so this is mainly for display
-      } catch (e) { /* ignore */ }
+        const r = await fetch('/api/delete_card', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ card_id: cardId })
+        });
+        const d = await r.json();
+        if (d.error) { showToast('Error: ' + d.error, 'error'); return; }
+        // Remove from local deck
+        localDeck = localDeck.filter(c => c.id !== cardId);
+        updateDeckUI();
+        showToast('Card deleted.', 'success');
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+      }
+    }
+
+    // ---- Load deck from server (persistence) ----
+    async function loadDeck() {
+      try {
+        const r = await fetch('/api/deck');
+        const d = await r.json();
+        if (d.cards && d.cards.length > 0) {
+          localDeck = d.cards;
+          updateDeckUI();
+        }
+      } catch (e) { /* server not ready yet, ignore */ }
     }
 
     // ---- ADD CARD ----
@@ -930,6 +1072,115 @@ H2O stands for? = Water'></textarea>
 
     // ---- QUIZ ----
     let quizActive = false;
+    let quizAnswered = 0;    // how many questions answered this session
+    let quizCorrect = 0;
+    let quizWrong = 0;
+    let currentQuizQuestion = ''; // track which question the user is answering
+
+    // Try to extract the question text from the agent's response or trace
+    function extractQuestion(resp) {
+      // Try trace first — quiz_me tool result has the exact question
+      try {
+        const trace = traceOverlay.textContent;
+        const qMatches = [...trace.matchAll(/"question":\s*"([^"]+)"/g)];
+        if (qMatches.length > 0) {
+          return qMatches[qMatches.length - 1][1];
+        }
+      } catch (e) {}
+      // Fallback: extract from bold text or question marks in response
+      const boldMatch = resp.match(/\*\*(.+?\?)\*\*/);
+      if (boldMatch) return boldMatch[1];
+      const qMatch = resp.match(/([A-Z][^.!]*\?)/);
+      if (qMatch) return qMatch[1];
+      return '';
+    }
+
+    function buildSummaryCard(correct, wrong, weakList) {
+      const total = correct + wrong;
+      const pct = total > 0 ? Math.round(100 * correct / total) : 0;
+      let emoji, message;
+      if (pct === 100) { emoji = '🏆'; message = 'Perfect score! You nailed every single card!'; }
+      else if (pct >= 80) { emoji = '🌟'; message = 'Great job! You\'ve got a solid grasp of most cards.'; }
+      else if (pct >= 60) { emoji = '💪'; message = 'Good effort! A bit more practice on the weak spots and you\'ll master them.'; }
+      else if (pct >= 40) { emoji = '📖'; message = 'Keep studying! Review the cards you missed and try again.'; }
+      else { emoji = '🔄'; message = 'Don\'t give up! Focus on the weak cards below and quiz yourself again.'; }
+
+      let weakHtml = '';
+      if (weakList.length > 0) {
+        weakHtml = `<div class="quiz-summary-weak"><h4>⚠️ Cards to Review</h4><ul>${weakList.map(q => `<li>${escapeHtml(q)}</li>`).join('')}</ul></div>`;
+      }
+
+      return `<div class="quiz-summary">
+        <div class="quiz-summary-title">${emoji} Quiz Complete!</div>
+        <div class="quiz-summary-grid">
+          <div class="quiz-stat-card stat-correct">
+            <span class="stat-icon">✅</span>
+            <span class="stat-value">${correct}</span>
+            <span class="stat-label">Correct</span>
+          </div>
+          <div class="quiz-stat-card stat-wrong">
+            <span class="stat-icon">❌</span>
+            <span class="stat-value">${wrong}</span>
+            <span class="stat-label">Wrong</span>
+          </div>
+          <div class="quiz-stat-card stat-accuracy">
+            <span class="stat-icon">🎯</span>
+            <span class="stat-value">${pct}%</span>
+            <span class="stat-label">Accuracy</span>
+          </div>
+        </div>
+        <div class="quiz-summary-message">${message}</div>
+        ${weakHtml}
+        <div class="quiz-summary-actions">
+          <button class="btn btn-success" onclick="restartQuiz()">🔁 Quiz Again</button>
+          <button class="btn btn-secondary" onclick="backToStart()">🏠 Done</button>
+        </div>
+      </div>`;
+    }
+
+    function endQuizWithFeedback() {
+      quizActive = false;
+      quizInputArea.style.display = 'none';
+
+      // Figure out which cards were missed (from trace data)
+      const weakCards = [];
+      try {
+        const trace = traceOverlay.textContent;
+        // Parse grade_answer results from trace to find wrong answers
+        const gradeMatches = trace.matchAll(/"correct":\s*false[^}]*"question":\s*"([^"]+)"/g);
+        for (const m of gradeMatches) {
+          if (!weakCards.includes(m[1])) weakCards.push(m[1]);
+        }
+      } catch (e) { /* ok */ }
+
+      const summaryDiv = document.createElement('div');
+      summaryDiv.innerHTML = buildSummaryCard(quizCorrect, quizWrong, weakCards);
+      quizChat.appendChild(summaryDiv);
+      quizChat.scrollTop = quizChat.scrollHeight;
+
+      // Update header stats
+      const total = quizCorrect + quizWrong;
+      statAccuracy.textContent = total > 0 ? Math.round(100 * quizCorrect / total) + '%' : '—';
+      statWeak.textContent = weakCards.length;
+    }
+
+    function restartQuiz() {
+      quizChat.innerHTML = '';
+      quizAnswered = 0;
+      quizCorrect = 0;
+      quizWrong = 0;
+      btnStartQuiz.click();
+    }
+
+    function backToStart() {
+      quizChat.innerHTML = '';
+      quizChat.style.display = 'none';
+      quizInputArea.style.display = 'none';
+      quizStart.style.display = 'flex';
+      quizAnswered = 0;
+      quizCorrect = 0;
+      quizWrong = 0;
+    }
 
     btnStartQuiz.addEventListener('click', async () => {
       if (localDeck.length === 0) {
@@ -940,12 +1191,20 @@ H2O stands for? = Water'></textarea>
       quizChat.style.display = 'flex';
       quizInputArea.style.display = 'flex';
       quizActive = true;
+      quizAnswered = 0;
+      quizCorrect = 0;
+      quizWrong = 0;
 
-      addMsg(quizChat, 'Starting quiz... 🚀', 'msg-system');
+      addMsg(quizChat, `Starting quiz — ${localDeck.length} card${localDeck.length !== 1 ? 's' : ''} in your deck. Let\'s go! 🚀`, 'msg-system');
 
       try {
-        const resp = await sendToAgent('quiz me');
-        addMsg(quizChat, resp, 'msg-agent');
+        const r = await fetch('/api/start_quiz', { method: 'POST' });
+        const d = await r.json();
+        if (d.question) {
+          addMsg(quizChat, `**${d.question}**`, 'msg-agent');
+        } else {
+          addMsg(quizChat, 'No cards to quiz!', 'msg-system');
+        }
         quizInput.focus();
       } catch (err) {
         addMsg(quizChat, 'Error: ' + err.message, 'msg-system');
@@ -961,25 +1220,34 @@ H2O stands for? = Water'></textarea>
       btnSendQuiz.innerHTML = '<span class="spinner"></span>';
 
       try {
-        const resp = await sendToAgent(answer);
-        addMsg(quizChat, resp, 'msg-agent');
+        const isLastQuestion = (quizAnswered + 1 >= localDeck.length);
+        const r = await fetch('/api/grade', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ answer, is_last: isLastQuestion })
+        });
+        const d = await r.json();
+        if (d.error) { addMsg(quizChat, 'Error: ' + d.error, 'msg-system'); return; }
 
-        // Try to update stats from trace
-        try {
-          const statsResp = traceOverlay.textContent;
-          const rightMatch = statsResp.match(/"right":\s*(\d+)/g);
-          const wrongMatch = statsResp.match(/"wrong":\s*(\d+)/g);
-          if (rightMatch && wrongMatch) {
-            // Update the local deck stats from trace info
-            let totalRight = 0, totalWrong = 0;
-            rightMatch.forEach(m => totalRight += parseInt(m.match(/\d+/)[0]));
-            wrongMatch.forEach(m => totalWrong += parseInt(m.match(/\d+/)[0]));
-            const total = totalRight + totalWrong;
-            statAccuracy.textContent = total > 0 ? Math.round(100 * totalRight / total) + '%' : '—';
-          }
-        } catch (e) { /* stats parse optional */ }
+        const grade = d.grade;
+        quizAnswered++;
 
-        quizInput.focus();
+        // Show grading result
+        if (grade.correct) {
+          quizCorrect++;
+          addMsg(quizChat, `Correct! ✅ Well done!`, 'msg-agent');
+        } else {
+          quizWrong++;
+          addMsg(quizChat, `Incorrect. The correct answer is **${grade.correct_answer}**.`, 'msg-agent');
+        }
+
+        // Show next question or end quiz
+        if (quizAnswered >= localDeck.length) {
+          endQuizWithFeedback();
+        } else if (d.next_question) {
+          addMsg(quizChat, `**${d.next_question.question}**`, 'msg-agent');
+          quizInput.focus();
+        }
       } catch (err) {
         addMsg(quizChat, 'Error: ' + err.message, 'msg-system');
       }
@@ -992,14 +1260,8 @@ H2O stands for? = Water'></textarea>
       if (e.key === 'Enter') sendQuizAnswer();
     });
 
-    btnStopQuiz.addEventListener('click', async () => {
-      quizActive = false;
-      addMsg(quizChat, 'Quiz session ended. 👋', 'msg-system');
-      try {
-        const resp = await sendToAgent('stop quiz, show my stats');
-        addMsg(quizChat, resp, 'msg-agent');
-      } catch (e) { /* ignore */ }
-      quizInputArea.style.display = 'none';
+    btnStopQuiz.addEventListener('click', () => {
+      endQuizWithFeedback();
     });
 
     // ---- RESET ----
@@ -1025,7 +1287,7 @@ H2O stands for? = Water'></textarea>
     });
 
     // ---- Init ----
-    updateDeckUI();
+    loadDeck();
   </script>
 </body>
 </html>
